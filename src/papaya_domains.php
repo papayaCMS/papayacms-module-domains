@@ -14,7 +14,7 @@
 *
 * @package Papaya-Modules
 * @subpackage Free-Domains
-* @version $Id: papaya_domains.php 39732 2014-04-08 15:34:45Z weinert $
+* @version $Id: papaya_domains.php 39829 2014-05-20 10:37:53Z weinert $
 */
 
 /**
@@ -170,7 +170,7 @@ class papaya_domains extends base_domains {
   public $module = NULL;
 
   /**
-   * @var PapayaTemplateXslt
+   * @var PapayaTemplate
    */
   public $layout = NULL;
 
@@ -355,7 +355,8 @@ class papaya_domains extends base_domains {
   function loadDetails($domainId) {
     $sql = "SELECT domain_id, domain_hostname, domain_hostlength,
                    domain_protocol, domain_language_id, domain_mode,
-                   domain_data, domain_options
+                   domain_data, domain_options,
+                   domaingroup_id
               FROM %s
              WHERE domain_id = %d";
     $params = array($this->tableDomains, (int)$domainId);
@@ -2261,7 +2262,7 @@ class papaya_domains extends base_domains {
   function getContentLanguageCombo($name, $element, $data) {
     $result = '';
     if (count($this->papaya()->languages) > 0) {
-      if (!isset($languages[$data])) {
+      if (!isset($this->papaya()->languages[$data])) {
         $data = $this->papaya()->options->get(
           'PAPAYA_CONTENT_LANGUAGE',
           $this->papaya()->administrationLanguage->id
@@ -2273,7 +2274,7 @@ class papaya_domains extends base_domains {
         papaya_strings::escapeHTMLChars($name)
       );
       foreach ($this->papaya()->languages as $language) {
-        $selected = ($data > 0 && $language['id'] == $data) ? ' selected="selected"' : '';
+        $selected = ($language['id'] == $data) ? ' selected="selected"' : '';
         $result .= sprintf(
           '<option value="%d"%s>%s (%s)</option>'.LF,
           papaya_strings::escapeHTMLChars($language['id']),
