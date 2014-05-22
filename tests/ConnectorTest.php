@@ -1,9 +1,5 @@
 <?php
-include_once(dirname(__FILE__).'/../../../../bootstrap.php');
-PapayaTestCase::registerPapayaAutoloader(
-  array(),
-  'modules/free/domains/_classmap.php'
-);
+include_once(dirname(__FILE__).'/bootstrap.php');
 PapayaTestCase::defineConstantDefaults(
  'PAPAYA_DB_TBL_VIEWMODES',
  'PAPAYA_DB_TABLEPREFIX'
@@ -14,7 +10,6 @@ class PapayaModuleDomainsConnectorTest extends PapayaTestCase {
   private function getConnectorObjectFixture() {
     return $this->getProxy('connector_domains');
   }
-
 
   /***************************************************************************/
   /** Methods                                                                */
