@@ -845,13 +845,24 @@ class papaya_domains extends base_domains {
       break;
     case 'edit_option':
       $this->initializeOptionDialog();
-      if ($this->optionDialog->checkDialogInput() &&
+      if ($this->optionDialog instanceof base_dialog) {
+        if ($this->optionDialog->checkDialogInput() &&
           isset($this->params['id']) &&
-          $this->checkOptionSpecial($this->params['id'], $this->params[$this->params['id']])) {
-        if ($this->saveOption()) {
-          $this->addMsg(MSG_INFO, $this->_gt('Option modified.'));
-        } else {
-          $this->addMsg(MSG_ERROR, $this->_gt('Cannot change option.'));
+          $this->checkOptionSpecial($this->params['id'], $this->params[$this->params['id']])
+        ) {
+          if ($this->saveOption()) {
+            $this->addMsg(MSG_INFO, $this->_gt('Option modified.'));
+          } else {
+            $this->addMsg(MSG_ERROR, $this->_gt('Cannot change option.'));
+          }
+        }
+      } elseif ($this->optionDialog instanceof PapayaAdministrationThemeBrowser) {
+        if ($this->optionDialog->dialog()->execute()) {
+          if ($this->saveOption()) {
+            $this->addMsg(MSG_INFO, $this->_gt('Option modified.'));
+          } else {
+            $this->addMsg(MSG_ERROR, $this->_gt('Cannot change option.'));
+          }
         }
       }
       break;
@@ -1279,54 +1290,76 @@ class papaya_domains extends base_domains {
   * currently has been switched into tree mode.
   */
   function initializeOptionDialog() {
-    if (!(isset($this->optionDialog) && is_object($this->optionDialog)) &&
-        isset($this->params['id'])) {
+    if (
+      !(
+        isset($this->optionDialog) &&
+        is_object($this->optionDialog)
+      ) &&
+      isset($this->params['id'])
+    ) {
       if (isset($this->optionValues[$this->params['id']])) {
         $value = $this->optionValues[$this->params['id']];
       } else {
         $value = papaya_options::$optFields[$this->params['id']][4];
       }
       $option = $this->params['id'];
-
-      $hidden = array(
-        'save' => 1,
-        'cmd' => 'edit_option',
-        'id' => $option,
-        'domain_id' => $this->loadedDomain['domain_id']
-      );
-      $data = array(
-        'opt_name' => $option,
-        'opt_value' => $value,
-      );
-      $fields = array(
-        'opt_name' => array('Name', '', FALSE, 'info', 0, '',
-          $option, 'left')
-      );
-      if (isset(papaya_options::$optFields[$option]) &&
-          is_array($optionField = papaya_options::$optFields[$option])) {
-        if (isset($optionField[5])) {
-          $needed = !(bool)$optionField[5];
-        } else {
-          $needed = TRUE;
-        }
-        $fields[$option] =
-          array('Value', $optionField[1], $needed, $optionField[2],
-            $optionField[3], '', $value);
+      if ($option == "PAPAYA_LAYOUT_THEME") {
+        $browser = new PapayaAdministrationThemeBrowser();
+        $browser->dialog()->parameterGroup($this->paramName);
+        $browser->dialog()->hiddenFields()->merge(
+          [
+            'cmd' => 'edit_option',
+            'domain_id' => $this->loadedDomain['domain_id']
+          ]
+        );
+        $browser->setCurrent($value);
+        $this->optionDialog = $browser;
       } else {
-        $fields[$option] =
-          array('Value', '', TRUE, 'info', '', '', $value);
+        $hidden = [
+          'save' => 1,
+          'cmd' => 'edit_option',
+          'id' => $option,
+          'domain_id' => $this->loadedDomain['domain_id']
+        ];
+        $data = [
+          'opt_name' => $option,
+          'opt_value' => $value,
+        ];
+        $fields = [
+          'opt_name' => [
+            'Name', '', FALSE, 'info', 0, '',
+            $option, 'left'
+          ]
+        ];
+        if (isset(papaya_options::$optFields[$option]) &&
+          is_array($optionField = papaya_options::$optFields[$option])
+        ) {
+          if (isset($optionField[5])) {
+            $needed = !(bool)$optionField[5];
+          } else {
+            $needed = TRUE;
+          }
+          $fields[$option] =
+            [
+              'Value', $optionField[1], $needed, $optionField[2],
+              $optionField[3], '', $value
+            ];
+        } else {
+          $fields[$option] =
+            ['Value', '', TRUE, 'info', '', '', $value];
+        }
+        $this->optionDialog = new base_dialog(
+          $this, $this->paramName, $fields, $data, $hidden
+        );
+        $this->optionDialog->dialogTitle = $this->_gt('Option');
+        $this->optionDialog->baseLink = $this->baseLink;
+        $this->optionDialog->loadParams();
       }
-      $this->optionDialog = new base_dialog(
-        $this, $this->paramName, $fields, $data, $hidden
-      );
-      $this->optionDialog->dialogTitle = $this->_gt('Option');
-      $this->optionDialog->baseLink = $this->baseLink;
-      $this->optionDialog->loadParams();
     }
   }
 
   /**
-  * initalize the dialog needed to change a field definition
+   * initalize the dialog needed to change a field definition
   *
   * @access public
   */
@@ -1668,11 +1701,11 @@ class papaya_domains extends base_domains {
           case 1:
             if (isset($this->loadedDomain['domain_mode']) &&
                 $this->loadedDomain['domain_mode'] == PAPAYA_DOMAIN_MODE_TREE) {
-              if (isset($this->params['id']) && $this->params['id'] == 'PAPAYA_LAYOUT_THEME') {
-                $this->layout->add($this->getLayoutDialogXML());
-              } else {
-                if (isset($this->optionDialog) && is_object($this->optionDialog)) {
+              if (isset($this->optionDialog)) {
+                if ($this->optionDialog instanceof base_dialog) {
                   $this->layout->add($this->optionDialog->getDialogXML());
+                } elseif ($this->optionDialog instanceof PapayaXmlAppendable) {
+                  $this->layout->add($this->optionDialog);
                 }
               }
               $this->getOptionsListXML();
@@ -1687,48 +1720,6 @@ class papaya_domains extends base_domains {
       }
     }
     $this->getButtonsXML();
-  }
-
-  /**
-  * Generate the theme browser dialog output.
-  *
-  * @return string output xml
-  */
-  public function getLayoutDialogXML() {
-    $result = '';
-    try {
-      // initialize dialog for retrieving hidden fields and token
-      $this->initializeOptionDialog();
-      // collect hidden fields for browser dialog
-      $hiddenFields = array_merge(
-        $this->optionDialog->hidden,
-        array('token' => $this->optionDialog->getDialogToken())
-      );
-      // choose from where data gets its values
-      if (isset($this->params['save'])) {
-        // select requested data after saving
-        $data = array(
-          'opt_name' => $this->params['id'],
-          'opt_value' => $this->params[$this->params['id']]
-        );
-      } else {
-        // select loaded data from db
-        $data = $this->optionDialog->data;
-      }
-      // use theme browser object to generate output xml
-      $themeBrowser = new PapayaUiAdministrationBrowserTheme(
-        $this,
-        $this->params,
-        $this->paramName,
-        $data,
-        $this->params['id'],
-        $hiddenFields
-      );
-      $result = $themeBrowser->getXml();
-    } catch (InvalidArgumentException $e) {
-      $this->addMsg(MSG_ERROR, $this->_gt($e->getMessage()));
-    }
-    return $result;
   }
 
   /**
