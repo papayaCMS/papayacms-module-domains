@@ -557,16 +557,16 @@ class papaya_domains extends base_domains {
     return FALSE !== $this->databaseUpdateRecord(
       $this->tableDomains,
       array(
-        'domain_hostname' => $fields['domain_hostname'],
+        'domain_hostname' => (string)$fields['domain_hostname'],
         'domaingroup_id' =>
-          empty($fields['domaingroup_id']) ? '' : $fields['domaingroup_id'],
+          empty($fields['domaingroup_id']) ? 0 : (int)$fields['domaingroup_id'],
         'domain_hostlength' => strlen($fields['domain_hostname']),
-        'domain_protocol' => empty($fields['domain_protocol']) ? '' : $fields['domain_protocol'],
+        'domain_protocol' => empty($fields['domain_protocol']) ? 0 : (int)$fields['domain_protocol'],
         'domain_language_id' =>
-          empty($fields['domain_language_id']) ? '' : $fields['domain_language_id'],
-        'domain_mode' => empty($fields['domain_mode']) ? '' : $fields['domain_mode'],
-        'domain_options' => empty($fields['domain_options']) ? '' : $fields['domain_options'],
-        'domain_data' => $result
+          empty($fields['domain_language_id']) ? 0 : (int)$fields['domain_language_id'],
+        'domain_mode' => empty($fields['domain_mode']) ? 0 : (int)$fields['domain_mode'],
+        'domain_options' => empty($fields['domain_options']) ? '' : (string)$fields['domain_options'],
+        'domain_data' => (string)$result
       ),
       'domain_id',
       (int)$fields['domain_id']
@@ -1115,7 +1115,18 @@ class papaya_domains extends base_domains {
   * @return integer|FALSE $newId
   */
   function insertDomain($domainData) {
-    $result = $this->databaseInsertRecord($this->tableDomains, 'domain_id', $domainData);
+    $result = $this->databaseInsertRecord(
+      $this->tableDomains,
+      'domain_id',
+      [
+        'domaingroup_id' => (int)$domainData['domaingroup_id'],
+        'domain_hostname' => (string)$domainData['domain_hostname'],
+        'domain_protocol' => (int)$domainData['domain_protocol'],
+        'domain_language_id' => (int)$domainData['domain_language_id'],
+        'domain_mode' => (int)$domainData['domain_mode'],
+        'domain_options' => ''
+      ]
+    );
     return $result;
   }
 
