@@ -170,9 +170,9 @@ class papaya_domains extends base_domains {
   public $module = NULL;
 
   /**
-   * @var PapayaTemplate
+   * @var PapayaTemplate|Papaya\Template
    */
-  public $layout = NULL;
+  public $layout;
 
   /**
    * @var base_dialog
@@ -874,18 +874,38 @@ class papaya_domains extends base_domains {
         } else {
           $protocol = NULL;
         }
+        $selectedVariant = NULL;
         $data = $this->checkDomain($this->params['test_domain'], $protocol);
+        $dialog = new Papaya\UI\Dialog();
+        $dialog->caption = new \Papaya\UI\Text\Translated('Information');
         if ($data) {
-          $this->addMsg(
-            MSG_INFO,
-            sprintf($this->_gt('Match found for "%s".'), $this->params['test_domain'])
+          $dialog->fields[] = new \Papaya\UI\Dialog\Field\Message(
+            Papaya\Message::SEVERITY_INFO,
+            new \Papaya\UI\Text\Translated('Match found for "%s": "%s"', [$this->params['test_domain'], $data['domain_hostname']])
           );
           $this->params['domain_id'] = $data['domain_id'];
           $this->params['cmd'] = 'edit_domain';
+          $selectedVariant =  $data['domain_hostname'];
           $this->loadData();
         } else {
-          $this->addMsg(MSG_INFO, $this->_gt('No match found.'));
+          $dialog->fields[] = new \Papaya\UI\Dialog\Field\Message(
+            Papaya\Message::SEVERITY_INFO,
+            new \Papaya\UI\Text\Translated('No match found.')
+          );
         }
+        if (
+          class_exists('\\Papaya\\Domain\\HostName\\Variants') &&
+          ($variants = new \Papaya\Domain\HostName\Variants($this->params['test_domain'])) &&
+          count($variants) > 0
+        ) {
+          $dialog->fields[] = new \Papaya\UI\Dialog\Field\ListView($listView = new Papaya\UI\ListView());
+            $listView->items[] = new \Papaya\UI\ListView\Item('', $this->params['test_domain']);
+          foreach ($variants as $variant) {
+            $listView->items[] = $item = new \Papaya\UI\ListView\Item('', $variant);
+            $item->selected = $selectedVariant === $variant;
+          }
+        }
+        $this->layout->addContent($dialog->getXML());
       }
       break;
     case 'test_pageid_link' :
